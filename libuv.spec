@@ -2,15 +2,12 @@
 %{!?scl:%global pkg_name %{name}}
 
 %global git_snapshot 5462dab
-
-#we only need major.minor in the SONAME in the stable (even numbered) series
-#this should be changed to %%{version} in unstable (odd numbered) releases
-%global sover 0.10
+%global somajor 0.10
 
 Name: %{?scl_prefix}libuv
 Epoch:   1
 Version: 0.10.30
-Release: 1%{?dist}
+Release: 2%{?dist}
 Summary: Platform layer for node.js
 
 Group: Development/Tools
@@ -19,6 +16,7 @@ License: MIT and BSD and ISC
 URL: http://nodejs.org/
 Source0: http://libuv.org/dist/v%{version}/%{pkg_name}-v%{version}.tar.gz
 Source2: libuv.pc.in
+Patch0:  soname.patch
 
 %{?scl:Requires: %{scl}-runtime}
 %{?scl:BuildRequires: %{scl}-runtime}
@@ -48,12 +46,13 @@ Development libraries for libuv
 
 %prep
 %setup -q -n %{pkg_name}-v%{version}
+%patch0 -p0
 
 %build
 %{?scl:scl enable %{scl} "}
 export CFLAGS='%{optflags}'
 export CXXFLAGS='%{optflags}'
-%{__python} gyp_uv.py -Dcomponent=shared_library -Dlibrary=shared_library
+%{__python} gyp_uv.py -Dcomponent=shared_library -Dlibrary=shared_library -Dsoname_version=%{?scl:%{scl_name}-}%{version}
 
 make %{?_smp_mflags} V=1 -C out BUILDTYPE=Release
 %{?scl: "}
@@ -61,10 +60,10 @@ make %{?_smp_mflags} V=1 -C out BUILDTYPE=Release
 %install
 # Copy the shared lib into the libdir
 mkdir -p %{buildroot}/%{_libdir}/
-cp out/Release/obj.target/libuv.so %{buildroot}/%{_libdir}/libuv.so.%{sover}
+cp out/Release/obj.target/libuv.so %{buildroot}/%{_libdir}/libuv.so.%{?scl:%{scl_name}-}%{version}
 pushd %{buildroot}/%{_libdir}/
-ln -s libuv.so.%{sover} libuv.so.0
-ln -s libuv.so.%{sover} libuv.so
+ln -s libuv.so.%{?scl:%{scl_name}-}%{version} libuv.so.%{somajor}
+ln -s libuv.so.%{?scl:%{scl_name}-}%{version} libuv.so
 popd
 
 # Copy the headers into the include path
@@ -111,6 +110,9 @@ sed -e "s#@prefix@#%{_prefix}#g" \
 %{_includedir}/uv-private
 
 %changelog
+* Thu Aug 11 2016 Dominic Cleal <dominic@cleal.org> - 1:0.10.30-2
+- Build .so with collection suffix in soname (bug #10606)
+
 * Wed Jan 07 2015 Tomas Hrcka <thrcka@redhat.com> - 1:0.10.30-1
 - new upstream release 0.10.30
 
